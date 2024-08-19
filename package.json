@@ -1,0 +1,28 @@
+{
+  "name": "coolify-migrator",
+  "version": "0.0.1",
+  "description": "Migrate coolify v4 to v4 beta",
+  "main": "index.js",
+  "repository": "https://github.com/eduhdev12/coolify-migrator.git",
+  "author": "Eduard A. <60825949+eduhdev12@users.noreply.github.com>",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node-dev --respawn --transpile-only --poll ./src/index.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.4.1",
+    "prisma": "^5.18.0",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.5.4"
+  },
+  "dependencies": {
+    "@paralleldrive/cuid2": "^2.2.2",
+    "@prisma/client": "^5.18.0",
+    "consola": "^3.2.3",
+    "dotenv": "^16.4.5",
+    "enquirer": "^2.4.1",
+    "knex": "^3.1.0",
+    "pg": "^8.12.0"
+  }
+}
