@@ -2,11 +2,20 @@ import { createId } from "@paralleldrive/cuid2";
 import consola from "consola";
 import knex, { Knex } from "knex";
 
+// @ts-ignore: Library without typescript support
+import { Encryptor } from "node-laravel-encryptor";
+
 class V4 {
   public db: Knex<any, unknown[]>;
+  public encryptor = new Encryptor({
+    key: process.env.V4_SECRET_KEY!.split(":")?.[1],
+  });
 
   // This will be changed after
   private team: number = 0;
+  private docker: number = 0;
+  private network: string = "coolify";
+  private enviorment: number = 1;
 
   constructor() {
     this.db = knex({ client: "pg", connection: process.env.V4_DATABASE! });
@@ -78,6 +87,53 @@ class V4 {
     return gitHubSource;
   }
   // #endregion
+
+  //#region PostgreSQL
+  async createPostgreSQL(
+    name: string,
+    postgres_user: string,
+    postgres_password: string,
+    postgres_db: string,
+    version: string | null,
+    public_port: number | null
+  ) {
+    const [postgreSQL] = await this.db("standalone_postgresqls")
+      .returning("*")
+      .insert<any>({
+        uuid: createId(),
+        name,
+        postgres_user,
+        postgres_password: this.encryptor.encryptSync(postgres_password),
+        postgres_db,
+        image: `postgres:${version || "16-alpine"}`,
+        destination_type: "App\\Models\\StandaloneDocker",
+        created_at: new Date(),
+        updated_at: new Date(),
+        destination_id: this.docker,
+        environment_id: this.enviorment,
+        public_port,
+        is_public: !!public_port,
+      });
+
+    return postgreSQL;
+  }
+
+  async createPostgresSQLVolume(id: number, uuid: string) {
+    const [postgreSQLVolume] = await this.db("local_persistent_volumes")
+      .returning("*")
+      .insert<any>({
+        name: `postgres-data-${uuid}`,
+        mount_path: "/var/lib/postgresql/data",
+        resource_type: "App\\Models\\StandalonePostgresql",
+        resource_id: id,
+        created_at: new Date(),
+        updated_at: new Date(),
+        is_readonly: true,
+      });
+
+    return postgreSQLVolume;
+  }
+  //#endregion
 }
 
 export default V4;

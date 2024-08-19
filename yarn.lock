@@ -157,6 +157,11 @@ balanced-match@^1.0.0:
   resolved "https://registry.yarnpkg.com/balanced-match/-/balanced-match-1.0.2.tgz#e83e3a7e3f300b34cb9d87f615fa0cbf357690ee"
   integrity sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==
 
+base64url@^3.0.1:
+  version "3.0.1"
+  resolved "https://registry.yarnpkg.com/base64url/-/base64url-3.0.1.tgz#6399d572e2bc3f90a9a8b22d5dbb0a32d33f788d"
+  integrity sha512-ir1UPr3dkwexU7FdV8qBBbNDRUhMmIekYMFZfi+C/sLNnRESKPl23nB9b2pltqfOQNnGzsDdId90AEtG5tCx4A==
+
 binary-extensions@^2.0.0:
   version "2.3.0"
   resolved "https://registry.yarnpkg.com/binary-extensions/-/binary-extensions-2.3.0.tgz#f6e14a97858d327252200242d4ccfe522c445522"
@@ -423,6 +428,13 @@ ms@2.1.2:
   resolved "https://registry.yarnpkg.com/ms/-/ms-2.1.2.tgz#d09d1f357b443f493382a8eb3ccd183872ae6009"
   integrity sha512-sGkPx+VjMtmA6MX27oA4FBFELFCZZ4S4XqeGOXCv68tT+jb3vk/RyaKWP0PTKyWtmLSM0b+adUTEvbs1PEaH2w==
 
+node-laravel-encryptor@^3.0.2:
+  version "3.0.2"
+  resolved "https://registry.yarnpkg.com/node-laravel-encryptor/-/node-laravel-encryptor-3.0.2.tgz#1c3f2cf64726a06a00c624a8110571200e9734ff"
+  integrity sha512-mPijFvBqsrrlE0EuNwyyB75jCSeECpBRySYomo0tErUc4OyEsi3KcrNn56+/z0UxQ3NJlDUI6SjIXK5DvXoFNg==
+  dependencies:
+    php-serialize "^3.0.0"
+
 normalize-path@^3.0.0, normalize-path@~3.0.0:
   version "3.0.0"
   resolved "https://registry.yarnpkg.com/normalize-path/-/normalize-path-3.0.0.tgz#0dcd69ff23a1c9b11fd0978316644a0388216a65"
@@ -505,6 +517,11 @@ pgpass@1.x:
   integrity sha512-FdW9r/jQZhSeohs1Z3sI1yxFQNFvMcnmfuj4WBMUTxOrAyLMaTcE1aAMBiTlbMNaXvBCQuVi0R7hd8udDSP7ug==
   dependencies:
     split2 "^4.1.0"
+
+php-serialize@^3.0.0:
+  version "3.0.1"
+  resolved "https://registry.yarnpkg.com/php-serialize/-/php-serialize-3.0.1.tgz#72cee09e514f390f9f2134f898aac7d7a81f5b97"
+  integrity sha512-fsMPqFtGbOB4jqxk1GiuMuBukTqX9mRBVdS8hiAQBhZmnC4EnUCUyv+NdmQGxK/Qb0lkF+ClJP4o22drXdPbdw==
 
 picomatch@^2.0.4, picomatch@^2.2.1:
   version "2.3.1"

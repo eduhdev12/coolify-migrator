@@ -1,4 +1,4 @@
-import { GithubApp, PrismaClient } from "@prisma/client";
+import { Database, GithubApp, PrismaClient } from "@prisma/client";
 import consola from "consola";
 import V3Utils from "./utils";
 
@@ -52,6 +52,42 @@ class V3 {
     );
 
     consola.success("Migrated GitHub source", migratedGitHub.name);
+  }
+  // #endregion
+
+  //#region PostgreSQL
+  async migratePostgreSQLDatabases() {
+    const databases = await global.v3.db.database.findMany({
+      where: { type: "postgresql" },
+    });
+
+    await Promise.all(
+      databases.map(async (database) => {
+        await this.migratePostgreSQL(database);
+      })
+    );
+  }
+
+  public async migratePostgreSQL(database: Database) {
+    if (database.type !== "postgresql") return;
+
+    const migratedPostgreSQL = await global.v4.createPostgreSQL(
+      database.name,
+      database.rootUser!,
+      this.utils.decrypt(database.rootUserPassword!)!,
+      database.defaultDatabase!,
+      database.version,
+      database.publicPort
+    );
+
+    consola.success("Migrated PostgreSQL", migratedPostgreSQL.name);
+
+    const migratedVolume = await global.v4.createPostgresSQLVolume(
+      migratedPostgreSQL.id,
+      migratedPostgreSQL.uuid
+    );
+
+    consola.success("Migrated PostgreSQL Volume", migratedVolume.name);
   }
   // #endregion
 }
