@@ -16,16 +16,18 @@ class V4 {
     global.v4 = this;
   }
 
-  // Github migration
+  // #region: GitHub
   async createPrivateKey(name: string, key: string) {
     try {
-      const [privateKey] = await this.db("private_keys").returning("*").insert<any>({
-        uuid: createId(),
-        name,
-        private_key: key,
-        is_git_related: true,
-        team_id: this.team,
-      });
+      const [privateKey] = await this.db("private_keys")
+        .returning("*")
+        .insert<any>({
+          uuid: createId(),
+          name,
+          private_key: key,
+          is_git_related: true,
+          team_id: this.team,
+        });
 
       return privateKey;
     } catch (error) {
@@ -55,24 +57,27 @@ class V4 {
       );
     }
 
-    const [gitHubSource] = await this.db("github_apps").returning("*").insert<any>({
-      uuid: createId(),
-      name,
-      api_url: "https://api.github.com",
-      html_url: "https://github.com",
-      custom_user: "git",
-      custom_port: 22,
-      app_id,
-      installation_id,
-      client_id,
-      client_secret: clientSecret,
-      webhook_secret: webhookSecret,
-      private_key_id: private_key,
-      team_id: this.team,
-    });
+    const [gitHubSource] = await this.db("github_apps")
+      .returning("*")
+      .insert<any>({
+        uuid: createId(),
+        name,
+        api_url: "https://api.github.com",
+        html_url: "https://github.com",
+        custom_user: "git",
+        custom_port: 22,
+        app_id,
+        installation_id,
+        client_id,
+        client_secret: clientSecret,
+        webhook_secret: webhookSecret,
+        private_key_id: private_key,
+        team_id: this.team,
+      });
 
     return gitHubSource;
   }
+  // #endregion
 }
 
 export default V4;

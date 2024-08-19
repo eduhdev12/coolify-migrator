@@ -13,6 +13,7 @@ class V3 {
     global.v3 = this;
   }
 
+  // #region: GitHub
   async migrateGitHub() {
     const sources = await global.v3.db.githubApp.findMany();
 
@@ -52,6 +53,7 @@ class V3 {
 
     consola.success("Migrated GitHub source", migratedGitHub.name);
   }
+  // #endregion
 }
 
 export default V3;
