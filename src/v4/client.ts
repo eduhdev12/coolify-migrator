@@ -4,6 +4,7 @@ import knex, { Knex } from "knex";
 
 // @ts-ignore: Library without typescript support
 import { Encryptor } from "node-laravel-encryptor";
+import { DatabaseInitScript } from "../types/VPS.types";
 
 class V4 {
   public db: Knex<any, unknown[]>;
@@ -95,7 +96,8 @@ class V4 {
     postgres_password: string,
     postgres_db: string,
     version: string | null,
-    public_port: number | null
+    public_port: number | null,
+    data: DatabaseInitScript[] | null
   ) {
     const [postgreSQL] = await this.db("standalone_postgresqls")
       .returning("*")
@@ -105,7 +107,9 @@ class V4 {
         postgres_user,
         postgres_password: this.encryptor.encryptSync(postgres_password),
         postgres_db,
-        image: `postgres:${version || "16-alpine"}`,
+        init_scripts: data ? JSON.stringify(data) : null,
+        // image: `postgres:${version || "16-alpine"}`,
+        image: `bitnami/postgresql:${version}`,
         destination_type: "App\\Models\\StandaloneDocker",
         created_at: new Date(),
         updated_at: new Date(),
