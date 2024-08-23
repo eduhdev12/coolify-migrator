@@ -12,6 +12,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.4.1",
+    "@types/ssh2-sftp-client": "^9.0.4",
     "prisma": "^5.18.0",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.5.4"
@@ -25,6 +26,10 @@
     "enquirer": "^2.4.1",
     "knex": "^3.1.0",
     "node-laravel-encryptor": "^3.0.2",
-    "pg": "^8.12.0"
+    "p-queue": "6.6.2",
+    "pg": "^8.12.0",
+    "scp2": "^0.5.0",
+    "ssh2": "^1.15.0",
+    "ssh2-sftp-client": "^11.0.0"
   }
 }

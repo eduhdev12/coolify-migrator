@@ -88,6 +88,8 @@ class V3 {
     );
 
     consola.success("Migrated PostgreSQL Volume", migratedVolume.name);
+
+    return migratedPostgreSQL;
   }
   // #endregion
 }
