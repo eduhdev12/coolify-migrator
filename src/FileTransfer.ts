@@ -48,9 +48,9 @@ class FileTransfer {
     // }
 
     this.v4Server = {
-      host: process.env.V4_HOST,
+      host: process.env.V4_HOST!,
       port: Number(process.env.V4_PORT),
-      user: process.env.V4_USER,
+      user: process.env.V4_USER!,
       password: process.env.V4_PASSWORD || "",
       privateKey: fsSync.readFileSync("/Users/eduh/.orbstack/ssh/id_ed25519"),
     };

@@ -2,6 +2,9 @@ import { Database, GithubApp, PrismaClient } from "@prisma/client";
 import consola from "consola";
 import V3Utils from "./utils";
 import { Client as SSHClient } from "ssh2";
+import fs from "fs";
+import FileTransfer from "../FileTransfer";
+import {sleep} from "../utils";
 
 class V3 {
   public db: PrismaClient;
@@ -81,7 +84,8 @@ class V3 {
 
     return new Promise<string | null>((resolve, reject) => {
       this.ssh.exec(
-        `docker exec ${database.id} sh -c "PGPASSWORD=${rootPassword} pg_dumpall -U postgres"`,
+        // `docker exec ${database.id} sh -c "PGPASSWORD=${rootPassword} pg_dumpall -U postgres"`,
+        `docker exec ${database.id} sh -c "PGPASSWORD=${dbPassword} pg_dump --format=custom --no-acl --no-owner --username ${database.dbUser} ${database.defaultDatabase}"`,
         (err, stream) => {
           if (err) {
             consola.error("Error executing SSH command", err);
@@ -92,12 +96,38 @@ class V3 {
           let dumpData = "";
 
           stream
-            .on("data", (data: string) => {
+            .on("data", async (data: string) => {
               dumpData += data;
+              await fs.mkdirSync(`${__dirname}/../../data/${database.id}/`, {
+                recursive: true,
+              });
+
+              await fs.appendFileSync(
+                `${__dirname}/../../data/${database.id}/${database.id}.dmp`,
+                data
+              );
             })
             .on("close", (code: number, signal: string) => {
               if (code === 0) {
-                resolve(dumpData);
+                consola.success(
+                  "Saved database dump",
+                  database.name,
+                  database.id
+                );
+
+                setTimeout(async () => {
+                  await global.transfer.uploadDirectory(
+                    `${__dirname}/../../${database.id}/`,
+                    `/root/v4-migration/${database.id}`,
+                    true,
+                    async () => {
+                      console.log("Uploadded");
+                      resolve(dumpData);
+                    }
+                  );
+                }, 5000);
+                // console.log("dada", dumpData)
+                // process.exit();
               } else {
                 consola.error(
                   "Dump process exited with code",
@@ -145,17 +175,27 @@ class V3 {
       database.defaultDatabase!,
       database.version,
       database.publicPort,
-      [{ index: 0, filename: "migration.sql", content: dbData }]
+      null
+      // [{ index: 0, filename: "migration.sql", content: dbData }]
     );
+    consola.success("Migrated PostgreSQL", migratedPostgreSQL.name, migratedPostgreSQL.uuid);
 
-    consola.success("Migrated PostgreSQL", migratedPostgreSQL.name);
+    await sleep(4500);
+
 
     const migratedVolume = await global.v4.createPostgresSQLVolume(
       migratedPostgreSQL.id,
       migratedPostgreSQL.uuid
     );
-
     consola.success("Migrated PostgreSQL Volume", migratedVolume.name);
+
+
+    await global.v4.startDatabase(migratedPostgreSQL.uuid);
+
+    await sleep(10000);
+
+    await global.v4.importPogresSQL(database, migratedPostgreSQL.uuid);
+
 
     return migratedPostgreSQL;
   }

@@ -5,12 +5,19 @@ import knex, { Knex } from "knex";
 // @ts-ignore: Library without typescript support
 import { Encryptor } from "node-laravel-encryptor";
 import { DatabaseInitScript } from "../types/VPS.types";
+import axios from "axios";
+import { Client as SSHClient } from "ssh2";
+import fsSync from "fs";
+import { Database } from "@prisma/client";
 
 class V4 {
   public db: Knex<any, unknown[]>;
   public encryptor = new Encryptor({
     key: process.env.V4_SECRET_KEY!.split(":")?.[1],
   });
+  public ssh: SSHClient;
+  private endpoint: string;
+  private API_KEY: string;
 
   // This will be changed after
   private team: number = 0;
@@ -20,6 +27,21 @@ class V4 {
 
   constructor() {
     this.db = knex({ client: "pg", connection: process.env.V4_DATABASE! });
+
+    this.ssh = new SSHClient()
+      .connect({
+        host: process.env.V4_HOST!,
+        port: Number(process.env.V4_PORT),
+        username: process.env.V4_USER!,
+        password: process.env.V4_PASSWORD,
+        privateKey: fsSync.readFileSync("/Users/eduh/.orbstack/ssh/id_ed25519"),
+      })
+      .on("ready", () => {
+        consola.success("Connected to v4 SSH");
+      });
+
+    this.endpoint = process.env.V4_ENDPOINT!;
+    this.API_KEY = process.env.V4_API_KEY!;
 
     consola.success("Connected to v4 database");
 
@@ -89,6 +111,21 @@ class V4 {
   }
   // #endregion
 
+  async startDatabase(uuid: string) {
+    const req = await axios.get(
+      `${this.endpoint}/api/v1/databases/${uuid}/start`,
+      { headers: { Authorization: `Bearer ${this.API_KEY}` } }
+    );
+
+    if (req.status !== 200) {
+      consola.error("Failed to start database", uuid, req.data);
+      return false;
+    }
+
+    consola.success("Started database", uuid);
+    return true;
+  }
+
   //#region PostgreSQL
   async createPostgreSQL(
     name: string,
@@ -120,6 +157,42 @@ class V4 {
       });
 
     return postgreSQL;
+  }
+
+  async importPogresSQL(database: Database, uuid: string) {
+    await global.transfer.uploadDirectory(
+      `${__dirname}/../../data/${database.id}`,
+      `/tmp/v4-migrate/${uuid}`,
+      true,
+      async () => {
+        return new Promise<void>((resolve, reject) => {
+          this.ssh.exec(
+            // `docker exec ${database.id} sh -c "PGPASSWORD=${rootPassword} pg_dumpall -U postgres"`,
+            `docker cp /tmp/v4-migrate/${uuid}/${database.id}.dmp ${uuid}:/tmp/${database.id}.dmp && docker exec ${uuid} sh -c 'PGPASSWORD=$POSTGRES_PASSWORD pg_restore -U $POSTGRES_USER -d $POSTGRES_DB /tmp/${database.id}.dmp'`,
+            (err, stream) => {
+              console.log("executing thiss");
+              if (err) {
+                consola.error("Error executing SSH command", err);
+                reject();
+                return;
+              }
+
+              stream
+                .on("data", async (data: string) => {
+                  console.log("data", data);
+                })
+                .on("close", (code: number, signal: string) => {
+                  consola.success("Imported databse dump", uuid);
+                  resolve();
+                })
+                // .stderr.on("data", (data) => {
+                //   consola.error("STDERR: " + data);
+                // });
+            }
+          );
+        });
+      }
+    );
   }
 
   async createPostgresSQLVolume(id: number, uuid: string) {

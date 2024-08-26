@@ -20,6 +20,7 @@
   "dependencies": {
     "@paralleldrive/cuid2": "^2.2.2",
     "@prisma/client": "^5.18.0",
+    "axios": "^1.7.5",
     "base64url": "^3.0.1",
     "consola": "^3.2.3",
     "dotenv": "^16.4.5",
