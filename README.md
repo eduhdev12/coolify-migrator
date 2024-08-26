@@ -19,9 +19,9 @@ This project aims to help users who have left their data on version [**Coolify**
 
 - [ ] **Databases**
 
-  - [ ] PostgreSQL
+  - [x] PostgreSQL
     - Container
-    - Not done: Volume data migration
+    - Volume data migration from dump
   - [ ] MySQL
   - [ ] MongoDB
   - [ ] MariaDB
