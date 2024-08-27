@@ -1,10 +1,10 @@
+import consola from "consola";
 import * as dotenv from "dotenv";
+import { prompt } from "enquirer";
+import FileTransfer from "./FileTransfer";
+import { sleep } from "./utils";
 import V3 from "./v3/client";
 import V4 from "./v4/client";
-import FileTransfer from "./FileTransfer";
-import consola from "consola";
-import { prompt } from "enquirer";
-import { sleep } from "./utils";
 
 dotenv.config();
 
@@ -17,6 +17,12 @@ async function Main() {
   const fileTransfer = new FileTransfer();
 
   global.transfer = fileTransfer;
+
+  await MigrationMenu();
+}
+
+async function MigrationMenu() {
+  console.clear();
 
   consola.info("Welcome to Coolify migrator");
 
@@ -63,6 +69,8 @@ async function Main() {
     console.clear();
 
     await global.v3.migrateGitHubSource(selectedSource);
+
+    await GoHome();
   }
 
   if (type === "databases") {
@@ -92,7 +100,23 @@ async function Main() {
     console.clear();
 
     await global.v3.migratePostgreSQL(selectedDatabase);
+
+    await GoHome();
   }
+}
+
+async function GoHome() {
+  const { confirm } = await prompt<{ confirm: boolean }>({
+    type: "confirm",
+    name: "confirm",
+    message: "Do you want to go back to main menu?",
+  });
+
+  if (!confirm) {
+    process.exit();
+  }
+
+  await MigrationMenu();
 }
 
 Main();
