@@ -1,4 +1,3 @@
-import consola from "consola";
 import crypto from "crypto";
 
 class V3Utils {

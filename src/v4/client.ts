@@ -1,14 +1,13 @@
 import { createId } from "@paralleldrive/cuid2";
+import { Database } from "@prisma/client";
+import axios from "axios";
 import consola from "consola";
+import fsSync from "fs";
 import knex, { Knex } from "knex";
+import { Client as SSHClient } from "ssh2";
 
 // @ts-ignore: Library without typescript support
 import { Encryptor } from "node-laravel-encryptor";
-import { DatabaseInitScript } from "../types/VPS.types";
-import axios from "axios";
-import { Client as SSHClient } from "ssh2";
-import fsSync from "fs";
-import { Database } from "@prisma/client";
 
 class V4 {
   public db: Knex<any, unknown[]>;
@@ -133,8 +132,7 @@ class V4 {
     postgres_password: string,
     postgres_db: string,
     version: string | null,
-    public_port: number | null,
-    data: DatabaseInitScript[] | null
+    public_port: number | null
   ) {
     const [postgreSQL] = await this.db("standalone_postgresqls")
       .returning("*")
@@ -144,7 +142,6 @@ class V4 {
         postgres_user,
         postgres_password: this.encryptor.encryptSync(postgres_password),
         postgres_db,
-        init_scripts: data ? JSON.stringify(data) : null,
         // image: `postgres:${version || "16-alpine"}`,
         image: `bitnami/postgresql:${version}`,
         destination_type: "App\\Models\\StandaloneDocker",
@@ -184,10 +181,10 @@ class V4 {
                 .on("close", (code: number, signal: string) => {
                   consola.success("Imported databse dump", uuid);
                   resolve();
-                })
-                // .stderr.on("data", (data) => {
-                //   consola.error("STDERR: " + data);
-                // });
+                });
+              // .stderr.on("data", (data) => {
+              //   consola.error("STDERR: " + data);
+              // });
             }
           );
         });

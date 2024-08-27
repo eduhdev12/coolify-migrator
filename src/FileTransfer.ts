@@ -142,7 +142,7 @@ class FileTransfer {
         }
       }
     } catch (err) {
-      consola.error("Failed to upload directory:", err);
+      consola.error("Failed to upload directory:", err, `${localDir} -> ${remoteDir}`);
     }
 
     if (first) {

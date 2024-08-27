@@ -1,10 +1,9 @@
 import { Database, GithubApp, PrismaClient } from "@prisma/client";
 import consola from "consola";
-import V3Utils from "./utils";
-import { Client as SSHClient } from "ssh2";
 import fs from "fs";
-import FileTransfer from "../FileTransfer";
-import {sleep} from "../utils";
+import { Client as SSHClient } from "ssh2";
+import { sleep } from "../utils";
+import V3Utils from "./utils";
 
 class V3 {
   public db: PrismaClient;
@@ -114,20 +113,6 @@ class V3 {
                   database.name,
                   database.id
                 );
-
-                setTimeout(async () => {
-                  await global.transfer.uploadDirectory(
-                    `${__dirname}/../../${database.id}/`,
-                    `/root/v4-migration/${database.id}`,
-                    true,
-                    async () => {
-                      console.log("Uploadded");
-                      resolve(dumpData);
-                    }
-                  );
-                }, 5000);
-                // console.log("dada", dumpData)
-                // process.exit();
               } else {
                 consola.error(
                   "Dump process exited with code",
@@ -174,14 +159,15 @@ class V3 {
       this.utils.decrypt(database.rootUserPassword!)!,
       database.defaultDatabase!,
       database.version,
-      database.publicPort,
-      null
-      // [{ index: 0, filename: "migration.sql", content: dbData }]
+      database.publicPort
     );
-    consola.success("Migrated PostgreSQL", migratedPostgreSQL.name, migratedPostgreSQL.uuid);
+    consola.success(
+      "Migrated PostgreSQL",
+      migratedPostgreSQL.name,
+      migratedPostgreSQL.uuid
+    );
 
     await sleep(4500);
-
 
     const migratedVolume = await global.v4.createPostgresSQLVolume(
       migratedPostgreSQL.id,
@@ -189,13 +175,11 @@ class V3 {
     );
     consola.success("Migrated PostgreSQL Volume", migratedVolume.name);
 
-
     await global.v4.startDatabase(migratedPostgreSQL.uuid);
 
     await sleep(10000);
 
     await global.v4.importPogresSQL(database, migratedPostgreSQL.uuid);
-
 
     return migratedPostgreSQL;
   }

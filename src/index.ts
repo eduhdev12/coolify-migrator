@@ -1,14 +1,98 @@
 import * as dotenv from "dotenv";
 import V3 from "./v3/client";
 import V4 from "./v4/client";
+import FileTransfer from "./FileTransfer";
+import consola from "consola";
+import { prompt } from "enquirer";
+import { sleep } from "./utils";
 
 dotenv.config();
 
 async function Main() {
+  global.dev =
+    process.env.DEBUG === "true" || process.env.NODE_ENV === "development";
+
   const ClientV3 = new V3();
   const ClientV4 = new V4();
+  const fileTransfer = new FileTransfer();
 
-  await global.v3.migrateGitHub();
+  global.transfer = fileTransfer;
+
+  consola.info("Welcome to Coolify migrator");
+
+  consola.warn(
+    "This project is not affiliated with the Coolify project and author!"
+  );
+
+  consola.warn(
+    "We assume no responsibility for errors or erroneous data transmitted during migration. You are 100% responsible that the migration may fail or that you may lose data."
+  );
+
+  await sleep(4500);
+
+  const { type } = await prompt<{ type: "github" | "databases" }>({
+    type: "select",
+    name: "type",
+    message: "What do you want to migrate?",
+    choices: [
+      { message: "Sources - Github", name: "github" },
+      { message: "Databases", name: "databases" },
+    ],
+  });
+
+  if (type === "github") {
+    const githubSources = await global.v3.db.githubApp.findMany();
+
+    const { source } = await prompt<{ source: string }>({
+      type: "select",
+      name: "source",
+      message: "Select the github source to migrate",
+      choices: githubSources.map((gitHub) => ({
+        message: `${gitHub.name} ${global.dev ? `(${gitHub.id})` : ""}`,
+        name: gitHub.id,
+      })),
+    });
+
+    const selectedSource = githubSources.find((github) => github.id === source);
+
+    if (!selectedSource) {
+      consola.error("Couldn't find the source with id", source);
+      process.exit();
+    }
+
+    console.clear();
+
+    await global.v3.migrateGitHubSource(selectedSource);
+  }
+
+  if (type === "databases") {
+    const allowedDatabases = ["postgresql"];
+    const databases = await global.v3.db.database.findMany();
+
+    const { db } = await prompt<{ db: string }>({
+      type: "select",
+      name: "db",
+      message: "Select the database to migrate",
+      choices: databases.map((database) => ({
+        message: `${database.name} - ${database.type} ${
+          global.dev ? `(${database.id})` : ""
+        }`,
+        name: database.id,
+        disabled: !allowedDatabases.includes(database.type!),
+      })),
+    });
+
+    const selectedDatabase = databases.find((database) => database.id === db);
+
+    if (!selectedDatabase) {
+      consola.error("Couldn't find the database with id", db);
+      process.exit();
+    }
+
+    console.clear();
+
+    await global.v3.migratePostgreSQL(selectedDatabase);
+  }
 }
 
 Main();
