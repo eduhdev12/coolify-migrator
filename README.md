@@ -22,9 +22,11 @@ This project aims to help users who have left their data on version [**Coolify**
   - [x] PostgreSQL
     - Container
     - Volume data migration from dump
-  - [ ] MySQL
-  - [ ] MongoDB
-  - [ ] MariaDB
+  - [x] MySQL
+    - Container
+    - Volume data migration from dump
+  - [ ] MongoDB _(not really planned)_
+  - [ ] MariaDB _(not really planned)_
   - [ ] CouchDB _(not really planned)_
   - [ ] EdgeDB _(not really planned)_
 
