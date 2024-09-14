@@ -1,4 +1,4 @@
-import { Database, GithubApp, PrismaClient } from "@prisma/client";
+import { Application, Database, GithubApp, PrismaClient } from "@prisma/client";
 import consola from "consola";
 import fs from "fs";
 import { Client as SSHClient } from "ssh2";
@@ -83,7 +83,6 @@ class V3 {
 
     return new Promise<string | null>((resolve, reject) => {
       this.ssh.exec(
-        // `docker exec ${database.id} sh -c "PGPASSWORD=${rootPassword} pg_dumpall -U postgres"`,
         `docker exec ${database.id} sh -c "PGPASSWORD=${dbPassword} pg_dump --format=custom --no-acl --no-owner --username ${database.dbUser} ${database.defaultDatabase}"`,
         (err, stream) => {
           if (err) {
@@ -189,6 +188,7 @@ class V3 {
   // #endregion
 
   //#region MySQL
+
   public async dumpMySQL(database: Database): Promise<string | null> {
     const dbPassword = this.utils.decrypt(database.dbUserPassword!);
     const rootPassword = this.utils.decrypt(database.rootUserPassword!);
@@ -199,7 +199,9 @@ class V3 {
     }
 
     return new Promise<string | null>((resolve, reject) => {
-      consola.fatal(`docker exec ${database.id} sh -c "mysqldump -u ${database.dbUser} -p${dbPassword} ${database.defaultDatabase}"`)
+      consola.fatal(
+        `docker exec ${database.id} sh -c "mysqldump -u ${database.dbUser} -p${dbPassword} ${database.defaultDatabase}"`
+      );
       this.ssh.exec(
         `docker exec ${database.id} sh -c "mysqldump -u ${database.dbUser} -p${dbPassword} ${database.defaultDatabase}"`,
         (err, stream) => {
@@ -301,6 +303,75 @@ class V3 {
   }
 
   // #endregion
+
+  //#region Application
+
+  public async migrateApplication(id: string) {
+    const application = await global.v3.db.application.findFirst({
+      where: { id: id },
+      include: { gitSource: { include: { githubApp: true } }, secrets: true },
+    });
+    consola.info("application is", application);
+
+    if (!application) {
+      consola.error("Application not found", id);
+      return;
+    }
+
+    const gitHubSource = await global.v4.getGitHubApp(
+      application.gitSource?.githubApp?.name!
+    );
+    console.log("corresponding github source is", gitHubSource);
+
+    const migratedApplication = await global.v4.createApplication(
+      application.projectId,
+      application.name,
+      application.fqdn,
+      application.repository!,
+      application.branch!,
+      null,
+      null,
+      "nixpacks",
+      "nginx:alpine",
+      application.installCommand,
+      application.buildCommand,
+      application.startCommand,
+      application.port,
+      gitHubSource.id,
+      null,
+      null,
+      null
+    );
+
+    console.log("migrated application is", migratedApplication);
+
+    const migratedApplicationSettings =
+      await global.v4.createApplicationSettings(migratedApplication.id);
+    console.log(
+      "migrated application settings is",
+      migratedApplicationSettings
+    );
+
+    await Promise.all(
+      application.secrets.map(async (secret) => {
+        await global.v4.createApplicationSecret(
+          migratedApplication.id,
+          secret.name,
+          secret.value,
+          secret.isBuildSecret,
+          secret.isPRMRSecret
+        );
+        consola.success(
+          "Migrated application secret",
+          `${secret.name} (${
+            secret.isPRMRSecret ? "PRMR" : secret.isBuildSecret ? "BUILD" : ""
+          })`,
+          this.utils.decrypt(secret.value)
+        );
+      })
+    );
+  }
+  //#endregion
 }
 
 export default V3;
