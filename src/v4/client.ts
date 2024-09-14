@@ -156,7 +156,7 @@ class V4 {
     return postgreSQL;
   }
 
-  async importPogresSQL(database: Database, uuid: string) {
+  async importPostgreSQL(database: Database, uuid: string) {
     await global.transfer.uploadDirectory(
       `${__dirname}/../../data/${database.id}`,
       `/tmp/v4-migrate/${uuid}`,

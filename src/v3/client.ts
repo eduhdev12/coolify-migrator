@@ -113,6 +113,7 @@ class V3 {
                   database.name,
                   database.id
                 );
+                resolve(null);
               } else {
                 consola.error(
                   "Dump process exited with code",
@@ -146,11 +147,13 @@ class V3 {
   public async migratePostgreSQL(database: Database) {
     if (database.type !== "postgresql") return;
 
-    const dbData = await this.dumpPostgresSQL(database);
+    const dumpFilePath = `${__dirname}/../../data/${database.id}/${database.id}.dmp`;
 
-    if (!dbData) {
-      consola.error("Failed to get db data");
-      return;
+    if (!fs.existsSync(dumpFilePath)) {
+      consola.error(
+        `Dump file not found for database ${database.name}. We will try to dump the database now.`
+      );
+      await this.dumpPostgresSQL(database);
     }
 
     const migratedPostgreSQL = await global.v4.createPostgreSQL(
@@ -179,7 +182,7 @@ class V3 {
 
     await sleep(10000);
 
-    await global.v4.importPogresSQL(database, migratedPostgreSQL.uuid);
+    await global.v4.importPostgreSQL(database, migratedPostgreSQL.uuid);
 
     return migratedPostgreSQL;
   }

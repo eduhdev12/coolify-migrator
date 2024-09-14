@@ -36,13 +36,14 @@ async function MigrationMenu() {
 
   await sleep(4500);
 
-  const { type } = await prompt<{ type: "github" | "databases" }>({
+  const { type } = await prompt<{ type: "github" | "databases" | "dump" }>({
     type: "select",
     name: "type",
     message: "What do you want to migrate?",
     choices: [
-      { message: "Sources - Github", name: "github" },
-      { message: "Databases", name: "databases" },
+      { message: "Migrate Sources - Github", name: "github" },
+      { message: "Migrate Databases", name: "databases" },
+      { message: "Dump Databases to Local", name: "dump" },
     ],
   });
 
@@ -100,6 +101,39 @@ async function MigrationMenu() {
     console.clear();
 
     await global.v3.migratePostgreSQL(selectedDatabase);
+
+    await GoHome();
+  }
+
+  if (type === "dump") {
+    const databases = await global.v3.db.database.findMany({
+      where: { type: "postgresql" },
+    });
+
+    const { db } = await prompt<{ db: string }>({
+      type: "select",
+      name: "db",
+      message: "Select the database to dump",
+      choices: databases.map((database) => ({
+        message: `${database.name} - ${database.type} ${
+          global.dev ? `(${database.id})` : ""
+        }`,
+        name: database.id,
+      })),
+    });
+
+    const selectedDatabase = databases.find((database) => database.id === db);
+
+    if (!selectedDatabase) {
+      consola.error("Couldn't find the database with id", db);
+      process.exit();
+    }
+
+    console.clear();
+
+    await global.v3.dumpPostgresSQL(selectedDatabase);
+
+    consola.success(`Database ${selectedDatabase.name} dumped successfully.`);
 
     await GoHome();
   }

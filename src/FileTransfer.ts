@@ -151,6 +151,21 @@ class FileTransfer {
       await onFinish?.();
     }
   }
+
+  public async uploadFile(
+    localFilePath: string,
+    remoteFilePath: string,
+    onFinish?: () => Promise<void>
+  ): Promise<void> {
+    try {
+      await this.v4Client.put(localFilePath, remoteFilePath);
+      consola.success(`Uploaded file: ${localFilePath} to ${remoteFilePath}`);
+    } catch (err) {
+      consola.error("Failed to upload file:", err, `${localFilePath} -> ${remoteFilePath}`);
+    }
+
+    await onFinish?.();
+  }
 }
 
 export default FileTransfer;
