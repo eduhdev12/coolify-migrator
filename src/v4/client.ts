@@ -8,6 +8,7 @@ import { Client as SSHClient } from "ssh2";
 
 // @ts-ignore: Library without typescript support
 import { Encryptor } from "node-laravel-encryptor";
+import { sleep } from "../utils";
 
 class V4 {
   public db: Knex<any, unknown[]>;
@@ -167,7 +168,6 @@ class V4 {
             // `docker exec ${database.id} sh -c "PGPASSWORD=${rootPassword} pg_dumpall -U postgres"`,
             `docker cp /tmp/v4-migrate/${uuid}/${database.id}.dmp ${uuid}:/tmp/${database.id}.dmp && docker exec ${uuid} sh -c 'PGPASSWORD=$POSTGRES_PASSWORD pg_restore -U $POSTGRES_USER -d $POSTGRES_DB /tmp/${database.id}.dmp'`,
             (err, stream) => {
-              console.log("executing thiss");
               if (err) {
                 consola.error("Error executing SSH command", err);
                 reject();
@@ -179,7 +179,7 @@ class V4 {
                   console.log("data", data);
                 })
                 .on("close", (code: number, signal: string) => {
-                  consola.success("Imported databse dump", uuid);
+                  consola.success("Imported database dump", uuid);
                   resolve();
                 });
               // .stderr.on("data", (data) => {
@@ -206,6 +206,90 @@ class V4 {
       });
 
     return postgreSQLVolume;
+  }
+  //#endregion
+
+  //#region MySQL
+  async createMySQL(
+    name: string,
+    mysql_root_password: string,
+    mysql_user: string,
+    mysql_password: string,
+    mysql_database: string | null,
+    public_port: number | null
+  ) {
+    const [mySQL] = await this.db("standalone_mysqls")
+      .returning("*")
+      .insert<any>({
+        uuid: createId(),
+        name,
+        mysql_root_password: this.encryptor.encryptSync(mysql_root_password),
+        mysql_user,
+        mysql_password: this.encryptor.encryptSync(mysql_password),
+        mysql_database,
+        image: `mysql:8`,
+        destination_type: "App\\Models\\StandaloneDocker",
+        created_at: new Date(),
+        updated_at: new Date(),
+        destination_id: this.docker,
+        environment_id: this.enviorment,
+        public_port,
+        is_public: !!public_port,
+      });
+
+    return mySQL;
+  }
+
+  async importMySQL(database: Database, uuid: string) {
+    await global.transfer.uploadDirectory(
+      `${__dirname}/../../data/${database.id}`,
+      `/tmp/v4-migrate/${uuid}`,
+      true,
+      async () => {
+        await sleep(5000);
+
+        return new Promise<void>((resolve, reject) => {
+          this.ssh.exec(
+            `docker cp /tmp/v4-migrate/${uuid}/${database.id}.dmp ${uuid}:/tmp/${database.id}.dmp && docker exec ${uuid} sh -c 'mysql -u $MYSQL_USER -p$MYSQL_PASSWORD $MYSQL_DATABASE < /tmp/${database.id}.dmp'`,
+            (err, stream) => {
+              if (err) {
+                consola.error("Error executing SSH command", err);
+                reject();
+                return;
+              }
+
+              stream
+                .on("data", async (data: string) => {
+                  console.log("data import", data);
+                })
+                .on("close", (code: number, signal: string) => {
+                  consola.success("Imported database dump", uuid, code, signal);
+                  resolve();
+                })
+                .stderr.on("data", (data) => {
+                  consola.error("STDERR: " + data);
+                });
+            }
+          );
+        });
+      }
+    );
+  }
+
+  async createMySQLVolume(id: number, uuid: string) {
+    const [mySQLVolume] = await this.db("local_persistent_volumes")
+      .returning("*")
+      .insert<any>({
+        name: `mysql-data-${uuid}`,
+        mount_path: "/var/lib/mysql",
+        resource_type: "App\\Models\\StandaloneMysql",
+        resource_id: id,
+        created_at: new Date(),
+        updated_at: new Date(),
+        is_readonly: true,
+      });
+
+    return mySQLVolume;
   }
   //#endregion
 }

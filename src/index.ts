@@ -75,7 +75,7 @@ async function MigrationMenu() {
   }
 
   if (type === "databases") {
-    const allowedDatabases = ["postgresql"];
+    const allowedDatabases = ["postgresql", "mysql"];
     const databases = await global.v3.db.database.findMany();
 
     const { db } = await prompt<{ db: string }>({
@@ -100,15 +100,26 @@ async function MigrationMenu() {
 
     console.clear();
 
-    await global.v3.migratePostgreSQL(selectedDatabase);
+    switch (selectedDatabase.type!) {
+      case "postgresql":
+        await global.v3.migratePostgreSQL(selectedDatabase);
+        break;
+
+      case "mysql":
+        await global.v3.migrateMySQL(selectedDatabase);
+        break;
+
+      default:
+        consola.error("Unsupported database type");
+        break;
+    }
 
     await GoHome();
   }
 
   if (type === "dump") {
-    const databases = await global.v3.db.database.findMany({
-      where: { type: "postgresql" },
-    });
+    const allowedDatabases = ["postgresql", "mysql"];
+    const databases = await global.v3.db.database.findMany();
 
     const { db } = await prompt<{ db: string }>({
       type: "select",
@@ -119,6 +130,7 @@ async function MigrationMenu() {
           global.dev ? `(${database.id})` : ""
         }`,
         name: database.id,
+        disabled: !allowedDatabases.includes(database.type!),
       })),
     });
 
@@ -131,7 +143,19 @@ async function MigrationMenu() {
 
     console.clear();
 
-    await global.v3.dumpPostgresSQL(selectedDatabase);
+    switch (selectedDatabase.type!) {
+      case "postgresql":
+        await global.v3.dumpPostgresSQL(selectedDatabase);
+        break;
+
+      case "mysql":
+        await global.v3.dumpMySQL(selectedDatabase);
+        break;
+
+      default:
+        consola.error("Unsupported database type");
+        break;
+    }
 
     consola.success(`Database ${selectedDatabase.name} dumped successfully.`);
 

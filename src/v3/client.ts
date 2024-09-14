@@ -187,6 +187,120 @@ class V3 {
     return migratedPostgreSQL;
   }
   // #endregion
+
+  //#region MySQL
+  public async dumpMySQL(database: Database): Promise<string | null> {
+    const dbPassword = this.utils.decrypt(database.dbUserPassword!);
+    const rootPassword = this.utils.decrypt(database.rootUserPassword!);
+
+    if (!dbPassword || !rootPassword) {
+      consola.error("Invalid password for database", database.name);
+      return null;
+    }
+
+    return new Promise<string | null>((resolve, reject) => {
+      consola.fatal(`docker exec ${database.id} sh -c "mysqldump -u ${database.dbUser} -p${dbPassword} ${database.defaultDatabase}"`)
+      this.ssh.exec(
+        `docker exec ${database.id} sh -c "mysqldump -u ${database.dbUser} -p${dbPassword} ${database.defaultDatabase}"`,
+        (err, stream) => {
+          if (err) {
+            consola.error("Error executing SSH command", err);
+            reject(err);
+            return;
+          }
+
+          let dumpData = "";
+
+          stream
+            .on("data", async (data: string) => {
+              dumpData += data;
+              await fs.mkdirSync(`${__dirname}/../../data/${database.id}/`, {
+                recursive: true,
+              });
+
+              await fs.appendFileSync(
+                `${__dirname}/../../data/${database.id}/${database.id}.dmp`,
+                data
+              );
+            })
+            .on("close", (code: number, signal: string) => {
+              if (code === 0) {
+                consola.success(
+                  "Saved database dump",
+                  database.name,
+                  database.id
+                );
+                resolve(null);
+              } else {
+                consola.error(
+                  "Dump process exited with code",
+                  code,
+                  "and signal",
+                  signal
+                );
+                reject(new Error(`Dump process failed with code ${code}`));
+              }
+            })
+            .stderr.on("data", (data) => {
+              consola.error("STDERR: " + data);
+            });
+        }
+      );
+    });
+  }
+
+  async migrateMySQLDatabases() {
+    const databases = await global.v3.db.database.findMany({
+      where: { type: "mysql" },
+    });
+
+    await Promise.all(
+      databases.map(async (database) => {
+        await this.migrateMySQL(database);
+      })
+    );
+  }
+
+  public async migrateMySQL(database: Database) {
+    if (database.type !== "mysql") return;
+
+    const dumpFilePath = `${__dirname}/../../data/${database.id}/${database.id}.dmp`;
+
+    if (!fs.existsSync(dumpFilePath)) {
+      consola.error(
+        `Dump file not found for database ${database.name}. We will try to dump the database now.`
+      );
+      await this.dumpMySQL(database);
+    }
+
+    const migratedMySQL = await global.v4.createMySQL(
+      database.name,
+      this.utils.decrypt(database.rootUserPassword!)!,
+      database.dbUser!,
+      this.utils.decrypt(database.dbUserPassword!)!,
+      database.defaultDatabase,
+      database.publicPort
+    );
+    consola.success("Migrated MySQL", migratedMySQL.name, migratedMySQL.uuid);
+
+    await sleep(4500);
+
+    const migratedVolume = await global.v4.createMySQLVolume(
+      migratedMySQL.id,
+      migratedMySQL.uuid
+    );
+    consola.success("Migrated MySQL Volume", migratedVolume.name);
+
+    await global.v4.startDatabase(migratedMySQL.uuid);
+
+    await sleep(15000);
+
+    await global.v4.importMySQL(database, migratedMySQL.uuid);
+
+    return migratedMySQL;
+  }
+
+  // #endregion
 }
 
 export default V3;
