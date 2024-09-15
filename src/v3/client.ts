@@ -67,6 +67,8 @@ class V3 {
     );
 
     consola.success("Migrated GitHub source", migratedGitHub.name);
+
+    return migratedGitHub;
   }
   // #endregion
 
@@ -311,17 +313,28 @@ class V3 {
       where: { id: id },
       include: { gitSource: { include: { githubApp: true } }, secrets: true },
     });
-    consola.info("application is", application);
 
     if (!application) {
       consola.error("Application not found", id);
       return;
     }
 
-    const gitHubSource = await global.v4.getGitHubApp(
+    let gitHubSource = await global.v4.getGitHubApp(
       application.gitSource?.githubApp?.name!
     );
-    console.log("corresponding github source is", gitHubSource);
+
+    if (!gitHubSource) {
+      if (!application.gitSource || !application.gitSource.githubApp) {
+        return consola.error("Github source not found");
+      }
+
+      consola.error(
+        "Github source not found for application, migrating now..."
+      );
+      gitHubSource = await this.migrateGitHubSource(
+        application.gitSource.githubApp
+      );
+    }
 
     const migratedApplication = await global.v4.createApplication(
       application.projectId,
@@ -343,14 +356,8 @@ class V3 {
       null
     );
 
-    console.log("migrated application is", migratedApplication);
-
     const migratedApplicationSettings =
       await global.v4.createApplicationSettings(migratedApplication.id);
-    console.log(
-      "migrated application settings is",
-      migratedApplicationSettings
-    );
 
     await Promise.all(
       application.secrets.map(async (secret) => {
