@@ -36,12 +36,13 @@ This project aims to help users who have left their data on version [**Coolify**
   - [x] Secrets
   - [x] Persistent Volumes
 
+> [!IMPORTANT]
+> Services cannot be migrated and transferred directly, due to the architecture difference between the 2 versions. We currently offer a dump transfer (volumes + databases) from where you can manually import
+
 - [ ] **Services**
 
-  - [ ] Deployment
-  - [ ] Secrets
-  - [ ] Volume data
-  - [ ] Persistent volumes
+  - [x] Wordpress + MySQL
+  - [ ] Plausible
 
 ## License
 
