@@ -109,6 +109,20 @@ class V4 {
 
     return gitHubSource;
   }
+
+  async getGitHubApp(name: string | undefined) {
+    if (!name) {
+      const [publicGitHub] = await this.db("github_apps").where(
+        "is_public",
+        true
+      );
+
+      return [publicGitHub];
+    }
+
+    const [gitHubApp] = await this.db("github_apps").where("name", name);
+    return gitHubApp;
+  }
   // #endregion
 
   async startDatabase(uuid: string) {
@@ -290,6 +304,124 @@ class V4 {
       });
 
     return mySQLVolume;
+  }
+  //#endregion
+
+  //#region Application
+
+  public async createApplication(
+    repository_project_id: number | null,
+    name: string,
+    fqdn: string | null,
+    git_repository: string,
+    git_branch: string,
+    docker_registry_image_name: string | null,
+    docker_registry_image_tag: string | null,
+    build_pack: "nixpacks" | string,
+    static_image: string | null,
+    install_command: string | null,
+    build_command: string | null,
+    start_command: string | null,
+    ports_exposes: number | null = 3000,
+    source_id: number | null,
+    dockerfile: string | null,
+    docker_compose_location: string | null,
+    docker_compose: string | null
+  ) {
+    const [newApplication] = await this.db("applications")
+      .returning("*")
+      .insert<any>({
+        repository_project_id,
+        uuid: createId(),
+        name,
+        fqdn,
+        git_repository,
+        git_branch,
+        docker_registry_image_name,
+        docker_registry_image_tag,
+        build_pack,
+        static_image,
+        install_command,
+        build_command,
+        start_command,
+        ports_exposes,
+        destination_type: "App\\Models\\StandaloneDocker",
+        destination_id: this.docker,
+        source_type: "App\\Models\\GithubApp",
+        source_id,
+        environment_id: this.enviorment,
+        created_at: new Date(),
+        updated_at: new Date(),
+        dockerfile,
+        dockerfile_location: "/Dockerfile",
+        docker_compose_location:
+          docker_compose_location || "/docker-compose.yaml",
+        docker_compose,
+      });
+
+    return newApplication;
+  }
+
+  public async createApplicationSettings(id: number) {
+    const [newApplicationSettings] = await this.db("application_settings")
+      .returning("*")
+      .insert<any>({
+        application_id: id,
+      });
+
+    return newApplicationSettings;
+  }
+
+  public async createApplicationSecret(
+    id: number,
+    key: string,
+    value: string,
+    isBuild?: boolean,
+    isPRMR?: boolean
+  ) {
+    const decryptedValue = global.v3.utils.decrypt(value);
+
+    if (!decryptedValue) {
+      return consola.error("Failed to decrypt value", value, id);
+    }
+
+    const [newApplicationSecret] = await this.db("environment_variables")
+      .returning("*")
+      .insert<any>({
+        key,
+        value: this.encryptor.encryptSync(decryptedValue, true),
+        is_build_time: isBuild,
+        is_preview: isPRMR,
+        application_id: id,
+        uuid: createId(),
+
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
+
+    return newApplicationSecret;
+  }
+
+  public async createApplicationStorage(
+    application_id: number,
+    path: string,
+    host_path: string,
+    isDirectory: boolean = true
+  ) {
+    const [newApplicationStorage] = await this.db("local_file_volumes")
+      .returning("*")
+      .insert<any>({
+        uuid: createId(),
+        fs_path: host_path,
+        mount_path: path,
+        resource_type: "App\\Models\\Application",
+        resource_id: application_id,
+        is_directory: isDirectory,
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
+
+    return newApplicationStorage;
   }
   //#endregion
 }

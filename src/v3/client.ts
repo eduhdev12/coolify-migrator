@@ -1,4 +1,4 @@
-import { Database, GithubApp, PrismaClient } from "@prisma/client";
+import { Application, Database, GithubApp, PrismaClient } from "@prisma/client";
 import consola from "consola";
 import fs from "fs";
 import { Client as SSHClient } from "ssh2";
@@ -67,6 +67,8 @@ class V3 {
     );
 
     consola.success("Migrated GitHub source", migratedGitHub.name);
+
+    return migratedGitHub;
   }
   // #endregion
 
@@ -83,7 +85,6 @@ class V3 {
 
     return new Promise<string | null>((resolve, reject) => {
       this.ssh.exec(
-        // `docker exec ${database.id} sh -c "PGPASSWORD=${rootPassword} pg_dumpall -U postgres"`,
         `docker exec ${database.id} sh -c "PGPASSWORD=${dbPassword} pg_dump --format=custom --no-acl --no-owner --username ${database.dbUser} ${database.defaultDatabase}"`,
         (err, stream) => {
           if (err) {
@@ -189,6 +190,7 @@ class V3 {
   // #endregion
 
   //#region MySQL
+
   public async dumpMySQL(database: Database): Promise<string | null> {
     const dbPassword = this.utils.decrypt(database.dbUserPassword!);
     const rootPassword = this.utils.decrypt(database.rootUserPassword!);
@@ -199,7 +201,9 @@ class V3 {
     }
 
     return new Promise<string | null>((resolve, reject) => {
-      consola.fatal(`docker exec ${database.id} sh -c "mysqldump -u ${database.dbUser} -p${dbPassword} ${database.defaultDatabase}"`)
+      consola.fatal(
+        `docker exec ${database.id} sh -c "mysqldump -u ${database.dbUser} -p${dbPassword} ${database.defaultDatabase}"`
+      );
       this.ssh.exec(
         `docker exec ${database.id} sh -c "mysqldump -u ${database.dbUser} -p${dbPassword} ${database.defaultDatabase}"`,
         (err, stream) => {
@@ -301,6 +305,182 @@ class V3 {
   }
 
   // #endregion
+
+  //#region Application
+
+  public async dumpApplication(id: string) {
+    const application = await global.v3.db.application.findFirst({
+      where: { id },
+      include: { persistentStorage: true },
+    });
+
+    if (!application) {
+      consola.error("Application not found", id);
+      return;
+    }
+
+    await Promise.all(
+      application.persistentStorage
+        .filter((ps) => !!ps.hostPath)
+        .map(async (persistentStorage) => {
+          const sftpHostPath = persistentStorage.hostPath!.replace(
+            "~",
+            "/root"
+          );
+
+          await global.transfer.downloadDirectory(
+            sftpHostPath,
+            `${__dirname}/../../data/${application.id}/volume`,
+            true,
+            async () => {
+              consola.success(
+                `Finished dumping volume ${persistentStorage.id} | ${persistentStorage.hostPath} -> ${persistentStorage.path}`
+              );
+            }
+          );
+        })
+    );
+  }
+
+  public async migrateApplication(id: string) {
+    const application = await global.v3.db.application.findFirst({
+      where: { id },
+      include: {
+        gitSource: { include: { githubApp: true } },
+        secrets: true,
+        persistentStorage: true,
+      },
+    });
+
+    if (!application) {
+      consola.error("Application not found", id);
+      return;
+    }
+
+    let gitHubSource = await global.v4.getGitHubApp(
+      application.gitSource?.githubApp?.name!
+    );
+
+    if (!gitHubSource) {
+      if (!application.gitSource || !application.gitSource.githubApp) {
+        return consola.error("Github source not found");
+      }
+
+      consola.error(
+        "Github source not found for application, migrating now..."
+      );
+      gitHubSource = await this.migrateGitHubSource(
+        application.gitSource.githubApp
+      );
+    }
+
+    let applicationType;
+
+    switch (application.buildPack) {
+      case "docker":
+        applicationType = "dockerfile";
+        break;
+
+      case "compose":
+        applicationType = "dockercompose";
+        break;
+
+      default:
+        applicationType = "nixpacks";
+        break;
+    }
+
+    const migratedApplication = await global.v4.createApplication(
+      !!gitHubSource.id ? application.projectId : null,
+      application.name,
+      application.fqdn,
+      application.repository!,
+      application.branch!,
+      null,
+      null,
+      applicationType,
+      "nginx:alpine",
+      application.installCommand,
+      application.buildCommand,
+      application.startCommand,
+      application.port,
+      gitHubSource.id || 0,
+      null,
+      applicationType !== "nixpacks"
+        ? application.dockerComposeFileLocation
+        : null,
+      applicationType !== "nixpacks" ? application.dockerComposeFile : null
+    );
+
+    const migratedApplicationSettings =
+      await global.v4.createApplicationSettings(migratedApplication.id);
+
+    await Promise.all(
+      application.secrets.map(async (secret) => {
+        await global.v4.createApplicationSecret(
+          migratedApplication.id,
+          secret.name,
+          secret.value,
+          secret.isBuildSecret,
+          secret.isPRMRSecret
+        );
+        consola.success(
+          "Migrated application secret",
+          `${secret.name} (${
+            secret.isPRMRSecret ? "PRMR" : secret.isBuildSecret ? "BUILD" : ""
+          })`,
+          this.utils.decrypt(secret.value)
+        );
+      })
+    );
+
+    await Promise.all(
+      application.persistentStorage
+        .filter((ps) => !!ps.hostPath)
+        .map(async (persistentStorage) => {
+          const sftpHostPath = persistentStorage.hostPath!.replace(
+            "~",
+            "/root"
+          );
+
+          await global.transfer.downloadDirectory(
+            //persistentStorage.hostPath!,
+            sftpHostPath,
+            `${__dirname}/../../data/${application.id}/volume`,
+            true,
+            async () => {
+              await global.transfer.uploadDirectory(
+                `${__dirname}/../../data/${application.id}/volume`,
+                sftpHostPath,
+                true,
+                async () => {
+                  const migratedApplicationStorage =
+                    await global.v4.createApplicationStorage(
+                      migratedApplication.id,
+                      persistentStorage.path,
+                      persistentStorage.hostPath!,
+                      true
+                    );
+
+                  consola.success(
+                    `Migrated application storage - ${application.name} (${
+                      migratedApplication.id
+                    }) | ${migratedApplicationStorage.fs_path} -> ${
+                      migratedApplicationStorage.mount_path
+                    } ${
+                      migratedApplicationStorage.is_directory
+                        ? "(Directory)"
+                        : ""
+                    }`
+                  );
+                }
+              );
+            }
+          );
+        })
+    );
+  }
+  //#endregion
 }
 
 export default V3;
