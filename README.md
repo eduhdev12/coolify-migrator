@@ -30,11 +30,11 @@ This project aims to help users who have left their data on version [**Coolify**
   - [ ] CouchDB _(not really planned)_
   - [ ] EdgeDB _(not really planned)_
 
-- [ ] **Applications**
+- [x] **Applications**
 
-  - [ ] Deployment
-  - [ ] Secrets
-  - [ ] Persistent Volumes
+  - [x] Deployment
+  - [x] Secrets
+  - [x] Persistent Volumes
 
 - [ ] **Services**
 
