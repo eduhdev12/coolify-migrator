@@ -340,15 +340,31 @@ class V3 {
       );
     }
 
+    let applicationType;
+
+    switch (application.buildPack) {
+      case "docker":
+        applicationType = "dockerfile";
+        break;
+
+      case "compose":
+        applicationType = "dockercompose";
+        break;
+
+      default:
+        applicationType = "nixpacks";
+        break;
+    }
+
     const migratedApplication = await global.v4.createApplication(
-      application.projectId,
+      !!gitHubSource.id ? application.projectId : null,
       application.name,
       application.fqdn,
       application.repository!,
       application.branch!,
       null,
       null,
-      "nixpacks",
+      applicationType,
       "nginx:alpine",
       application.installCommand,
       application.buildCommand,
@@ -356,8 +372,10 @@ class V3 {
       application.port,
       gitHubSource.id || !!application.repository ? 0 : null,
       null,
-      null,
-      null
+      applicationType !== "nixpacks"
+        ? application.dockerComposeFileLocation
+        : null,
+      applicationType !== "nixpacks" ? application.dockerComposeFile : null
     );
 
     const migratedApplicationSettings =
@@ -400,7 +418,6 @@ class V3 {
               await global.transfer.uploadDirectory(
                 `${__dirname}/../../data/${application.id}/volume`,
                 sftpHostPath,
-                //persistentStorage.hostPath!,
                 true,
                 async () => {
                   const migratedApplicationStorage =
