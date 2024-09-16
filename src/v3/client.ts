@@ -1,4 +1,4 @@
-import { Application, Database, GithubApp, PrismaClient } from "@prisma/client";
+import { Database, GithubApp, PrismaClient, Service } from "@prisma/client";
 import consola from "consola";
 import fs from "fs";
 import { Client as SSHClient } from "ssh2";
@@ -510,6 +510,152 @@ class V3 {
           }
         })
     );
+  }
+  //#endregion
+
+  //#region Services
+  public async dumpServiceVolume(service_id: string) {
+    const service = await global.v3.db.service.findFirst({
+      where: { id: service_id },
+    });
+
+    if (!service) {
+      consola.error("Service not found", service_id);
+      return;
+    }
+
+    switch (service.type) {
+      case "wordpress":
+        await this.dumpWordpress(service);
+        break;
+
+      default:
+        consola.error(
+          `Unknwon service type ${service.type} for ${service.name} (${service.id})`
+        );
+        return;
+    }
+  }
+
+  public async dumpWordpress(service: Service) {
+    if (service.type !== "wordpress") {
+      consola.error(
+        "The service provided is not wordpress",
+        service.name,
+        service.id
+      );
+      return;
+    }
+
+    await this.dumpWordpressMySQL(service);
+
+    return new Promise<string | null>(async (resolve, reject) => {
+      await global.transfer.downloadDirectory(
+        `/var/lib/docker/volumes/${service.id}-wordpress-data/_data`,
+        `${__dirname}/../../data/${service.id}/wordpress`,
+        true,
+        async () => {
+          consola.success(
+            `Dumped ${service.name} (${service.type}) | /var/lib/docker/volumes/${service.id}-wordpress-data/_data -> ${__dirname}/../../${service.id}/wordpress`
+          );
+          resolve(null);
+        },
+        async (error) => {
+          reject(error);
+        }
+      );
+    });
+  }
+
+  public async dumpWordpressMySQL(service: Service) {
+    if (service.type !== "wordpress") {
+      consola.error(
+        "The service provided is not wordpress",
+        service.name,
+        service.id
+      );
+      return;
+    }
+
+    const serviceSecrets = await global.v3.db.serviceSecret.findMany({
+      where: { serviceId: service.id },
+    });
+    const serviceSettings = await global.v3.db.serviceSetting.findMany({
+      where: { serviceId: service.id },
+    });
+
+    const secretPassword = serviceSecrets.find(
+      (s) => s.name === "MYSQL_PASSWORD"
+    );
+    const settingsUser = serviceSettings.find((s) => s.name === "MYSQL_USER");
+    const settingDatabase = serviceSettings.find(
+      (s) => s.name === "MYSQL_DATABASE"
+    );
+
+    if (!secretPassword || !settingsUser || !settingDatabase) {
+      consola.error(
+        "No password found for Wordpress-MYSQL",
+        service.name,
+        service.id
+      );
+      return;
+    }
+
+    const dbPassword = this.utils.decrypt(secretPassword.value);
+
+    if (!dbPassword) {
+      consola.error("Invalid password for wordpress database", service.name);
+      return;
+    }
+
+    return new Promise<string | null>((resolve, reject) => {
+      this.ssh.exec(
+        `docker exec ${service.id}-mysql sh -c "mysqldump -u ${settingsUser.value} -p${dbPassword} ${settingDatabase.value}"`,
+        (err, stream) => {
+          if (err) {
+            consola.error("Error executing SSH command", err);
+            reject(err);
+            return;
+          }
+
+          let dumpData = "";
+
+          stream
+            .on("data", async (data: string) => {
+              dumpData += data;
+              await fs.mkdirSync(`${__dirname}/../../data/${service.id}/`, {
+                recursive: true,
+              });
+
+              await fs.appendFileSync(
+                `${__dirname}/../../data/${service.id}/${service.id}-mysql.dmp`,
+                data
+              );
+            })
+            .on("close", (code: number, signal: string) => {
+              if (code === 0) {
+                consola.success(
+                  "Saved service database dump",
+                  service.name,
+                  service.id
+                );
+                resolve(null);
+              } else {
+                consola.error(
+                  "Dump process exited with code",
+                  code,
+                  "and signal",
+                  signal
+                );
+                reject(new Error(`Dump process failed with code ${code}`));
+              }
+            })
+            .stderr.on("data", (data) => {
+              consola.error("STDERR: " + data);
+            });
+        }
+      );
+    });
   }
   //#endregion
 }

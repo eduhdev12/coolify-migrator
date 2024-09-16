@@ -37,7 +37,13 @@ async function MigrationMenu() {
   await sleep(4500);
 
   const { type } = await prompt<{
-    type: "github" | "databases" | "dump" | "application" | "application-dump";
+    type:
+      | "github"
+      | "databases"
+      | "dump"
+      | "application"
+      | "application-dump"
+      | "service-dump";
   }>({
     type: "select",
     name: "type",
@@ -48,6 +54,7 @@ async function MigrationMenu() {
       { message: "Dump Databases to Local", name: "dump" },
       { message: "Application", name: "application" },
       { message: "Dump application", name: "application-dump" },
+      { message: "Dump services", name: "service-dump" },
     ],
   });
 
@@ -232,6 +239,39 @@ async function MigrationMenu() {
     consola.success(
       `Dumped application ${selectedApplication.name} successfully.`
     );
+
+    await GoHome();
+  }
+
+  if (type === "service-dump") {
+    const allowedServices = ["wordpress"];
+    const services = await global.v3.db.service.findMany({});
+
+    const { service } = await prompt<{ service: string }>({
+      type: "select",
+      name: "service",
+      message: "Select the service to dump",
+      choices: services.map((service) => ({
+        message: `${service.name} - ${service.type} ${
+          global.dev ? `(${service.id})` : ""
+        }`,
+        name: service.id,
+        disabled: !allowedServices.includes(service.type!),
+      })),
+    });
+
+    const selectedService = services.find((s) => s.id === service);
+
+    if (!selectedService) {
+      consola.error("Couldn't find the service with id", service);
+      process.exit();
+    }
+
+    console.clear();
+
+    await global.v3.dumpServiceVolume(selectedService.id);
+
+    consola.success(`Dumped service ${selectedService.name} successfully.`);
 
     await GoHome();
   }

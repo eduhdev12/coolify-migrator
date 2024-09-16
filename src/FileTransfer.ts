@@ -69,7 +69,8 @@ class FileTransfer {
     remoteDir: string,
     localDir: string,
     first: boolean = true,
-    onFinish?: () => Promise<void>
+    onFinish?: () => Promise<void>,
+    onError?: (err: any) => Promise<void>
   ): Promise<void> {
     try {
       // Ensure local directory exists
@@ -101,6 +102,7 @@ class FileTransfer {
       }
     } catch (err: any) {
       consola.error(`Failed to download directory:`, err);
+      onError?.(err);
     }
 
     if (first) {
@@ -142,7 +144,11 @@ class FileTransfer {
         }
       }
     } catch (err) {
-      consola.error("Failed to upload directory:", err, `${localDir} -> ${remoteDir}`);
+      consola.error(
+        "Failed to upload directory:",
+        err,
+        `${localDir} -> ${remoteDir}`
+      );
     }
 
     if (first) {
@@ -161,7 +167,11 @@ class FileTransfer {
       await this.v4Client.put(localFilePath, remoteFilePath);
       consola.success(`Uploaded file: ${localFilePath} to ${remoteFilePath}`);
     } catch (err) {
-      consola.error("Failed to upload file:", err, `${localFilePath} -> ${remoteFilePath}`);
+      consola.error(
+        "Failed to upload file:",
+        err,
+        `${localFilePath} -> ${remoteFilePath}`
+      );
     }
 
     await onFinish?.();
