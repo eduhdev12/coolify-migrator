@@ -311,7 +311,11 @@ class V3 {
   public async migrateApplication(id: string) {
     const application = await global.v3.db.application.findFirst({
       where: { id: id },
-      include: { gitSource: { include: { githubApp: true } }, secrets: true },
+      include: {
+        gitSource: { include: { githubApp: true } },
+        secrets: true,
+        persistentStorage: true,
+      },
     });
 
     if (!application) {
@@ -350,7 +354,7 @@ class V3 {
       application.buildCommand,
       application.startCommand,
       application.port,
-      gitHubSource.id,
+      gitHubSource.id || !!application.repository ? 0 : null,
       null,
       null,
       null
@@ -376,6 +380,53 @@ class V3 {
           this.utils.decrypt(secret.value)
         );
       })
+    );
+
+    await Promise.all(
+      application.persistentStorage
+        .filter((ps) => !!ps.hostPath)
+        .map(async (persistentStorage) => {
+          const sftpHostPath = persistentStorage.hostPath!.replace(
+            "~",
+            "/root"
+          );
+
+          await global.transfer.downloadDirectory(
+            //persistentStorage.hostPath!,
+            sftpHostPath,
+            `${__dirname}/../../data/${application.id}/volume`,
+            true,
+            async () => {
+              await global.transfer.uploadDirectory(
+                `${__dirname}/../../data/${application.id}/volume`,
+                sftpHostPath,
+                //persistentStorage.hostPath!,
+                true,
+                async () => {
+                  const migratedApplicationStorage =
+                    await global.v4.createApplicationStorage(
+                      migratedApplication.id,
+                      persistentStorage.path,
+                      persistentStorage.hostPath!,
+                      true
+                    );
+
+                  consola.success(
+                    `Migrated application storage - ${application.name} (${
+                      migratedApplication.id
+                    }) | ${migratedApplicationStorage.fs_path} -> ${
+                      migratedApplicationStorage.mount_path
+                    } ${
+                      migratedApplicationStorage.is_directory
+                        ? "(Directory)"
+                        : ""
+                    }`
+                  );
+                }
+              );
+            }
+          );
+        })
     );
   }
   //#endregion

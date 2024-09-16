@@ -110,7 +110,16 @@ class V4 {
     return gitHubSource;
   }
 
-  async getGitHubApp(name: string) {
+  async getGitHubApp(name: string | undefined) {
+    if (!name) {
+      const [publicGitHub] = await this.db("github_apps").where(
+        "is_public",
+        true
+      );
+
+      return [publicGitHub];
+    }
+
     const [gitHubApp] = await this.db("github_apps").where("name", name);
     return gitHubApp;
   }
@@ -391,6 +400,28 @@ class V4 {
       });
 
     return newApplicationSecret;
+  }
+
+  public async createApplicationStorage(
+    application_id: number,
+    path: string,
+    host_path: string,
+    isDirectory: boolean = true
+  ) {
+    const [newApplicationStorage] = await this.db("local_file_volumes")
+      .returning("*")
+      .insert<any>({
+        uuid: createId(),
+        fs_path: host_path,
+        mount_path: path,
+        resource_type: "App\\Models\\Application",
+        resource_id: application_id,
+        is_directory: isDirectory,
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
+
+    return newApplicationStorage;
   }
   //#endregion
 }
