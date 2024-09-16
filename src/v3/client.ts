@@ -442,41 +442,72 @@ class V3 {
             "~",
             "/root"
           );
+          const localVolumePath = `${__dirname}/../../data/${application.id}/volume`;
 
-          await global.transfer.downloadDirectory(
-            //persistentStorage.hostPath!,
-            sftpHostPath,
-            `${__dirname}/../../data/${application.id}/volume`,
-            true,
-            async () => {
-              await global.transfer.uploadDirectory(
-                `${__dirname}/../../data/${application.id}/volume`,
-                sftpHostPath,
-                true,
-                async () => {
-                  const migratedApplicationStorage =
-                    await global.v4.createApplicationStorage(
-                      migratedApplication.id,
-                      persistentStorage.path,
-                      persistentStorage.hostPath!,
-                      true
-                    );
-
-                  consola.success(
-                    `Migrated application storage - ${application.name} (${
-                      migratedApplication.id
-                    }) | ${migratedApplicationStorage.fs_path} -> ${
-                      migratedApplicationStorage.mount_path
-                    } ${
-                      migratedApplicationStorage.is_directory
-                        ? "(Directory)"
-                        : ""
-                    }`
+          if (fs.existsSync(localVolumePath)) {
+            consola.info(
+              `Using existing local volume data for ${application.name}`
+            );
+            await global.transfer.uploadDirectory(
+              localVolumePath,
+              sftpHostPath,
+              true,
+              async () => {
+                const migratedApplicationStorage =
+                  await global.v4.createApplicationStorage(
+                    migratedApplication.id,
+                    persistentStorage.path,
+                    persistentStorage.hostPath!,
+                    true
                   );
-                }
-              );
-            }
-          );
+
+                consola.success(
+                  `Migrated application storage - ${application.name} (${
+                    migratedApplication.id
+                  }) | ${migratedApplicationStorage.fs_path} -> ${
+                    migratedApplicationStorage.mount_path
+                  } ${
+                    migratedApplicationStorage.is_directory ? "(Directory)" : ""
+                  }`
+                );
+              }
+            );
+          } else {
+            await global.transfer.downloadDirectory(
+              //persistentStorage.hostPath!,
+              sftpHostPath,
+              `${__dirname}/../../data/${application.id}/volume`,
+              true,
+              async () => {
+                await global.transfer.uploadDirectory(
+                  `${__dirname}/../../data/${application.id}/volume`,
+                  sftpHostPath,
+                  true,
+                  async () => {
+                    const migratedApplicationStorage =
+                      await global.v4.createApplicationStorage(
+                        migratedApplication.id,
+                        persistentStorage.path,
+                        persistentStorage.hostPath!,
+                        true
+                      );
+
+                    consola.success(
+                      `Migrated application storage - ${application.name} (${
+                        migratedApplication.id
+                      }) | ${migratedApplicationStorage.fs_path} -> ${
+                        migratedApplicationStorage.mount_path
+                      } ${
+                        migratedApplicationStorage.is_directory
+                          ? "(Directory)"
+                          : ""
+                      }`
+                    );
+                  }
+                );
+              }
+            );
+          }
         })
     );
   }
