@@ -404,7 +404,7 @@ class V3 {
       application.buildCommand,
       application.startCommand,
       application.port,
-      gitHubSource.id || !!application.repository ? 0 : null,
+      gitHubSource.id || 0,
       null,
       applicationType !== "nixpacks"
         ? application.dockerComposeFileLocation
