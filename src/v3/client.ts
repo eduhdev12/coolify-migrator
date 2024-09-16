@@ -308,9 +308,43 @@ class V3 {
 
   //#region Application
 
+  public async dumpApplication(id: string) {
+    const application = await global.v3.db.application.findFirst({
+      where: { id },
+      include: { persistentStorage: true },
+    });
+
+    if (!application) {
+      consola.error("Application not found", id);
+      return;
+    }
+
+    await Promise.all(
+      application.persistentStorage
+        .filter((ps) => !!ps.hostPath)
+        .map(async (persistentStorage) => {
+          const sftpHostPath = persistentStorage.hostPath!.replace(
+            "~",
+            "/root"
+          );
+
+          await global.transfer.downloadDirectory(
+            sftpHostPath,
+            `${__dirname}/../../data/${application.id}/volume`,
+            true,
+            async () => {
+              consola.success(
+                `Finished dumping volume ${persistentStorage.id} | ${persistentStorage.hostPath} -> ${persistentStorage.path}`
+              );
+            }
+          );
+        })
+    );
+  }
+
   public async migrateApplication(id: string) {
     const application = await global.v3.db.application.findFirst({
-      where: { id: id },
+      where: { id },
       include: {
         gitSource: { include: { githubApp: true } },
         secrets: true,

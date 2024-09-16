@@ -37,7 +37,7 @@ async function MigrationMenu() {
   await sleep(4500);
 
   const { type } = await prompt<{
-    type: "github" | "databases" | "dump" | "application";
+    type: "github" | "databases" | "dump" | "application" | "application-dump";
   }>({
     type: "select",
     name: "type",
@@ -47,6 +47,7 @@ async function MigrationMenu() {
       { message: "Migrate Databases", name: "databases" },
       { message: "Dump Databases to Local", name: "dump" },
       { message: "Application", name: "application" },
+      { message: "Dump application", name: "application-dump" },
     ],
   });
 
@@ -195,6 +196,41 @@ async function MigrationMenu() {
 
     consola.success(
       `Migrated application ${selectedApplication.name} successfully.`
+    );
+
+    await GoHome();
+  }
+
+  if (type === "application-dump") {
+    const applications = await global.v3.db.application.findMany({});
+
+    const { app } = await prompt<{ app: string }>({
+      type: "select",
+      name: "app",
+      message: "Select the application to dump",
+      choices: applications.map((application) => ({
+        message: `${application.name} - ${application.buildPack} | ${
+          application.repository
+        }-${application.branch} ${global.dev ? `(${application.id})` : ""}`,
+        name: application.id,
+      })),
+    });
+
+    const selectedApplication = applications.find(
+      (application) => application.id === app
+    );
+
+    if (!selectedApplication) {
+      consola.error("Couldn't find the application with id", app);
+      process.exit();
+    }
+
+    console.clear();
+
+    await global.v3.dumpApplication(selectedApplication.id);
+
+    consola.success(
+      `Dumped application ${selectedApplication.name} successfully.`
     );
 
     await GoHome();
