@@ -42,7 +42,30 @@ This project aims to help users who have left their data on version [**Coolify**
 - [ ] **Services**
 
   - [x] Wordpress + MySQL
-  - [ ] Plausible
+
+# How to run it:
+
+1. Complete `.env` with the server connection variables
+
+2. Import `v3` database:
+
+```
+yarn import:db
+```
+
+3. Install the proxy on `v4` server:
+
+```
+yarn proxy
+```
+
+4. Complete your env file with the printed values from proxy installation (`V3_SECRET_KEY`, `V4_SECRET_KEY`, `V4_DATABASE`)
+
+5. Start the migration interface:
+
+```
+yarn start
+```
 
 ## License
 
