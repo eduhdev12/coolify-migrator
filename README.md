@@ -2,6 +2,9 @@
 
 This project aims to help users who have left their data on version [**Coolify**](https://coolify.io) `v3` to migrate to version `v4`
 
+> [!NOTE]
+> Tested and working with Coolify `4.0.0-beta.340`
+
 > [!IMPORTANT]
 > This project is not affiliated with the Coolify project and author!
 
