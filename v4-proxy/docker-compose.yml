@@ -1,7 +1,7 @@
 services:
   container_id-proxy:
     build:
-      context: ~/db-proxy
+      context: ~/v4-proxy
       dockerfile: Dockerfile
     image: nginx:stable-alpine
     container_name: container_id-proxy

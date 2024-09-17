@@ -42,6 +42,8 @@ class Proxy {
 
   private async init() {
     await sleep(4500);
+    await this.getV4Info();
+
     await this.checkExists();
 
     const containerId = await this.getDatabaseContainerId();
@@ -146,6 +148,88 @@ class Proxy {
     return new Promise<string | null>((resolve, reject) => {
       this.ssh.exec(
         'docker ps --filter "name=coolify-db" --format "{{.ID}}"',
+        (err, stream) => {
+          if (err) {
+            consola.error("Error executing SSH command", err);
+            return;
+          }
+
+          let output = "";
+
+          stream
+            .on("data", async (data: string) => {
+              output += data;
+            })
+            .on("close", (code: number, signal: string) => {
+              if (code === 0) {
+                resolve(output.trim());
+              } else {
+                consola.error(
+                  "Dump process exited with code",
+                  code,
+                  "and signal",
+                  signal
+                );
+                reject(code);
+              }
+            })
+            .stderr.on("data", (data) => {
+              consola.error("STDERR: " + data);
+            });
+        }
+      );
+    });
+  }
+
+  private async getV4Info() {
+    const key = await this.getV4AppKey();
+    if (!key) {
+      return consola.error("Failed to get the application v4 key");
+    }
+    const db = await this.getDBPassowrd();
+
+    consola.info("APP KEY", key);
+    consola.info("V4_DB_PASSWORD", db);
+  }
+
+  private async getV4AppKey() {
+    return new Promise<string | null>((resolve, reject) => {
+      this.ssh.exec("docker exec coolify printenv APP_KEY", (err, stream) => {
+        if (err) {
+          consola.error("Error executing SSH command", err);
+          return;
+        }
+
+        let output = "";
+
+        stream
+          .on("data", async (data: string) => {
+            output += data;
+          })
+          .on("close", (code: number, signal: string) => {
+            if (code === 0) {
+              resolve(output.trim());
+            } else {
+              consola.error(
+                "Dump process exited with code",
+                code,
+                "and signal",
+                signal
+              );
+              reject(code);
+            }
+          })
+          .stderr.on("data", (data) => {
+            consola.error("STDERR: " + data);
+          });
+      });
+    });
+  }
+
+  private async getDBPassowrd() {
+    return new Promise<string | null>((resolve, reject) => {
+      this.ssh.exec(
+        "docker exec coolify printenv DB_PASSWORD",
         (err, stream) => {
           if (err) {
             consola.error("Error executing SSH command", err);
