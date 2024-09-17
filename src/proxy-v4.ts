@@ -16,6 +16,27 @@ class Proxy {
 
     global.transfer = this.fileTransfer;
 
+    const v3 = new SSHClient()
+      .connect({
+        host: process.env.V3_HOST!,
+        port: Number(process.env.V3_PORT),
+        username: process.env.V3_USER!,
+        password: process.env.V3_PASSWORD!,
+        privateKey: !!process.env.V3_PRIVATE_KEY
+          ? fs.readFileSync(process.env.V3_PRIVATE_KEY)
+          : undefined,
+      })
+      .on("ready", async () => {
+        const v3Key = await this.getV3Decrypt(v3);
+        if (!v3Key) {
+          return consola.error("Failed to get v3 decrypt key");
+        }
+
+        consola.info("V3_SECRET_KEY", v3Key);
+      }).on("error", (error) => {
+        consola.error("Error connecting v4", error);
+      });
+
     this.ssh = new SSHClient()
       .connect({
         host: process.env.V4_HOST!,
@@ -28,6 +49,9 @@ class Proxy {
         consola.success("Connected to v4 SSH");
 
         this.init();
+      })
+      .on("error", (error) => {
+        consola.error("Error connecting v4", error);
       });
   }
 
@@ -230,6 +254,43 @@ class Proxy {
     return new Promise<string | null>((resolve, reject) => {
       this.ssh.exec(
         "docker exec coolify printenv DB_PASSWORD",
+        (err, stream) => {
+          if (err) {
+            consola.error("Error executing SSH command", err);
+            return;
+          }
+
+          let output = "";
+
+          stream
+            .on("data", async (data: string) => {
+              output += data;
+            })
+            .on("close", (code: number, signal: string) => {
+              if (code === 0) {
+                resolve(output.trim());
+              } else {
+                consola.error(
+                  "Dump process exited with code",
+                  code,
+                  "and signal",
+                  signal
+                );
+                reject(code);
+              }
+            })
+            .stderr.on("data", (data) => {
+              consola.error("STDERR: " + data);
+            });
+        }
+      );
+    });
+  }
+
+  private async getV3Decrypt(client: SSHClient) {
+    return new Promise<string | null>((resolve, reject) => {
+      client.exec(
+        "docker exec coolify printenv COOLIFY_SECRET_KEY",
         (err, stream) => {
           if (err) {
             consola.error("Error executing SSH command", err);
