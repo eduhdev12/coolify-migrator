@@ -33,7 +33,8 @@ class Proxy {
         }
 
         consola.info("V3_SECRET_KEY", v3Key);
-      }).on("error", (error) => {
+      })
+      .on("error", (error) => {
         consola.error("Error connecting v4", error);
       });
 
@@ -212,8 +213,11 @@ class Proxy {
     }
     const db = await this.getDBPassowrd();
 
-    consola.info("APP KEY", key);
-    consola.info("V4_DB_PASSWORD", db);
+    consola.info("V4_SECRET_KEY", key);
+    consola.info(
+      "V4_DATABASE",
+      `postgresql://coolify:${db}@localhost:1338/coolify`
+    );
   }
 
   private async getV4AppKey() {
