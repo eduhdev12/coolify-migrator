@@ -1,0 +1,24 @@
+services:
+  container_id-proxy:
+    build:
+      context: ~/db-proxy
+      dockerfile: Dockerfile
+    image: nginx:stable-alpine
+    container_name: container_id-proxy
+    ports:
+      - '1338:1338'
+    networks:
+      - coolify
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - stat /etc/nginx/nginx.conf || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 1s
+networks:
+  coolify:
+    external: true
+    name: coolify
+    attachable: true

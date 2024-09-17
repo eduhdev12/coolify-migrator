@@ -210,6 +210,20 @@ class FileTransfer {
       await onError?.(err);
     }
   }
+
+  public async folderExistsOnV4(remotePath: string): Promise<boolean> {
+    try {
+      const exists = await this.v4Client.exists(remotePath);
+      if (exists) {
+        const stats = await this.v4Client.stat(remotePath);
+        return stats.isDirectory;
+      }
+      return false;
+    } catch (err) {
+      consola.error(`Error checking if folder exists: ${remotePath}`, err);
+      return false;
+    }
+  }
 }
 
 export default FileTransfer;

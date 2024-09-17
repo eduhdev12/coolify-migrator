@@ -17,6 +17,7 @@ class V3 {
         port: Number(process.env.V3_PORT),
         username: process.env.V3_USER!,
         password: process.env.V3_PASSWORD,
+        privateKey: fs.readFileSync(process.env.V3_PRIVATE_KEY!),
       })
       .on("ready", () => {
         consola.success("Connected to v3 SSH");

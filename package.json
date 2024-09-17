@@ -9,6 +9,7 @@
   "scripts": {
     "build": "tsc",
     "start": "ts-node-dev --respawn --transpile-only --poll ./src/index.ts",
+    "proxy": "ts-node-dev --respawn --transpile-only --poll ./src/proxy-v4.ts",
     "import:db": "ts-node-dev --respawn --transpile-only --poll ./src/import-v3.ts"
   },
   "devDependencies": {

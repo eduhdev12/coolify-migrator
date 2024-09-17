@@ -34,7 +34,7 @@ class V4 {
         port: Number(process.env.V4_PORT),
         username: process.env.V4_USER!,
         password: process.env.V4_PASSWORD,
-        privateKey: fsSync.readFileSync("/Users/eduh/.orbstack/ssh/id_ed25519"),
+        privateKey: fsSync.readFileSync(process.env.V4_PRIVATE_KEY!),
       })
       .on("ready", () => {
         consola.success("Connected to v4 SSH");
