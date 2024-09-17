@@ -70,6 +70,8 @@ yarn proxy
 yarn start
 ```
 
+Also, make sure to create your own API key with `All (root/admin access), be careful!` permissions in your `v4` instance!
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
