@@ -48,6 +48,8 @@ This project aims to help users who have left their data on version [**Coolify**
 
 # How to run it:
 
+Before migration, you need to make sure the application/service/database is `running`
+
 1. Complete `.env` with the server connection variables
 
 2. Import `v3` database:
