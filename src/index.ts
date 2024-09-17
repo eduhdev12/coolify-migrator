@@ -1,6 +1,7 @@
 import consola from "consola";
 import * as dotenv from "dotenv";
 import { prompt } from "enquirer";
+import fs from "fs";
 import FileTransfer from "./FileTransfer";
 import { sleep } from "./utils";
 import V3 from "./v3/client";
@@ -17,6 +18,14 @@ async function Main() {
   const fileTransfer = new FileTransfer();
 
   global.transfer = fileTransfer;
+
+  const v3DbPath = `${__dirname}/../prisma/v3.db`;
+  if (!fs.existsSync(v3DbPath)) {
+    consola.error(
+      "V3 database file not found. Please run yarn import:db script first."
+    );
+    process.exit(0);
+  }
 
   await MigrationMenu();
 }

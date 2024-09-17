@@ -176,6 +176,40 @@ class FileTransfer {
 
     await onFinish?.();
   }
+
+  public async downloadFile(
+    remotePath: string,
+    localPath: string,
+    onFinish?: () => Promise<void>,
+    onError?: (err: any) => Promise<void>
+  ): Promise<void> {
+    try {
+      // Ensure the local directory exists
+      await fs.mkdir(path.dirname(localPath), { recursive: true });
+
+      // Download the file
+      await this.queue.add(
+        async () => {
+          await this.v3Client.get(remotePath, localPath);
+          if (global.dev) {
+            consola.success(
+              `Downloaded ${localPath} size=${this.queue.size} pending=${this.queue.pending}`
+            );
+          }
+        },
+        { priority: 2 }
+      );
+
+      await this.queue.onIdle();
+      consola.success(
+        `Finished downloading file: ${remotePath} to ${localPath}`
+      );
+      await onFinish?.();
+    } catch (err: any) {
+      consola.error(`Failed to download file:`, err);
+      await onError?.(err);
+    }
+  }
 }
 
 export default FileTransfer;

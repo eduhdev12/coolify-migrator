@@ -28,6 +28,25 @@ class V3 {
     global.v3 = this;
   }
 
+  public async getDatabase() {
+    await sleep(4500); // We need to make sure the sftp connection is working
+
+    return new Promise<string | null>(async (resolve, reject) => {
+      await global.transfer.downloadFile(
+        "/var/lib/docker/volumes/coolify-db/_data/prod.db",
+        `${__dirname}/../../prisma/v3.db`,
+        async () => {
+          consola.success("Imported Coolify v3 database");
+          resolve(null);
+        },
+        async (err) => {
+          consola.fatal("Error while importing Coolify v3 database", err);
+          reject(err);
+        }
+      );
+    });
+  }
+
   // #region: GitHub
   async migrateGitHub() {
     const sources = await global.v3.db.githubApp.findMany();

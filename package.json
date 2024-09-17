@@ -8,7 +8,8 @@
   "license": "MIT",
   "scripts": {
     "build": "tsc",
-    "dev": "ts-node-dev --respawn --transpile-only --poll ./src/index.ts"
+    "start": "ts-node-dev --respawn --transpile-only --poll ./src/index.ts",
+    "import:db": "ts-node-dev --respawn --transpile-only --poll ./src/import-v3.ts"
   },
   "devDependencies": {
     "@types/node": "^22.4.1",
