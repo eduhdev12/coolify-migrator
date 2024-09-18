@@ -74,6 +74,8 @@ yarn start
 
 Also, make sure to create your own API key with `All (root/admin access), be careful!` permissions in your `v4` instance!
 
+After migration you can run `docker compose down` in `~/v4-proxy` to disable the production database proxy.
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
