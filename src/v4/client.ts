@@ -40,6 +40,8 @@ class V4 {
       })
       .on("ready", () => {
         consola.success("Connected to v4 SSH");
+      }).on("error", (error) => {
+        consola.error("Failed to login to v4 ssh", error)
       });
 
     this.endpoint = process.env.V4_ENDPOINT!;

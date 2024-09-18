@@ -23,14 +23,16 @@ class FileTransfer {
       !process.env.V3_PASSWORD
     ) {
       consola.error("Failed to init sftp for v3 instance");
-      return;
     }
 
     this.v3Server = {
-      host: process.env.V3_HOST,
+      host: process.env.V3_HOST!,
       port: Number(process.env.V3_PORT),
-      user: process.env.V3_USER,
+      user: process.env.V3_USER!,
       password: process.env.V3_PASSWORD,
+      privateKey: !!process.env.V3_PRIVATE_KEY
+        ? fsSync.readFileSync(process.env.V3_PRIVATE_KEY)
+        : undefined,
     };
 
     this.v3Client
@@ -52,7 +54,9 @@ class FileTransfer {
       port: Number(process.env.V4_PORT),
       user: process.env.V4_USER!,
       password: process.env.V4_PASSWORD || "",
-      privateKey: fsSync.readFileSync("/Users/eduh/.orbstack/ssh/id_ed25519"),
+      privateKey: !!process.env.V4_PRIVATE_KEY
+        ? fsSync.readFileSync(process.env.V4_PRIVATE_KEY)
+        : undefined,
     };
 
     this.v4Client

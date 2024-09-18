@@ -16,27 +16,29 @@ class Proxy {
 
     global.transfer = this.fileTransfer;
 
-    const v3 = new SSHClient()
-      .connect({
-        host: process.env.V3_HOST!,
-        port: Number(process.env.V3_PORT),
-        username: process.env.V3_USER!,
-        password: process.env.V3_PASSWORD!,
-        privateKey: !!process.env.V3_PRIVATE_KEY
-          ? fs.readFileSync(process.env.V3_PRIVATE_KEY)
-          : undefined,
-      })
-      .on("ready", async () => {
-        const v3Key = await this.getV3Decrypt(v3);
-        if (!v3Key) {
-          return consola.error("Failed to get v3 decrypt key");
-        }
+    if (!!process.env.V3_HOST) {
+      const v3 = new SSHClient()
+        .connect({
+          host: process.env.V3_HOST!,
+          port: Number(process.env.V3_PORT),
+          username: process.env.V3_USER!,
+          password: process.env.V3_PASSWORD!,
+          privateKey: !!process.env.V3_PRIVATE_KEY
+            ? fs.readFileSync(process.env.V3_PRIVATE_KEY)
+            : undefined,
+        })
+        .on("ready", async () => {
+          const v3Key = await this.getV3Decrypt(v3);
+          if (!v3Key) {
+            return consola.error("Failed to get v3 decrypt key");
+          }
 
-        consola.info("V3_SECRET_KEY", v3Key);
-      })
-      .on("error", (error) => {
-        consola.error("Error connecting v4", error);
-      });
+          consola.info("V3_SECRET_KEY", v3Key);
+        })
+        .on("error", (error) => {
+          consola.error("Error connecting v4", error);
+        });
+    }
 
     this.ssh = new SSHClient()
       .connect({
@@ -44,7 +46,9 @@ class Proxy {
         port: Number(process.env.V4_PORT),
         username: process.env.V4_USER!,
         password: process.env.V4_PASSWORD,
-        privateKey: fs.readFileSync(process.env.V4_PRIVATE_KEY!),
+        privateKey: !!process.env.V4_PRIVATE_KEY
+          ? fs.readFileSync(process.env.V4_PRIVATE_KEY)
+          : undefined,
       })
       .on("ready", () => {
         consola.success("Connected to v4 SSH");
@@ -66,7 +70,7 @@ class Proxy {
   }
 
   private async init() {
-    await sleep(4500);
+    await sleep(6500);
     await this.getV4Info();
 
     await this.checkExists();
@@ -133,9 +137,11 @@ class Proxy {
   }
 
   private async start() {
-    return new Promise<string | null>((resolve, reject) => {
+    return new Promise<string | null>(async (resolve, reject) => {
+      await sleep(4500);
+
       this.ssh.exec(
-        "cd /root/v4-migrate && docker compose up --build -d",
+        "cd /root/v4-proxy && docker compose up --build -d",
         (err, stream) => {
           if (err) {
             consola.error("Error executing SSH command", err);
