@@ -76,6 +76,8 @@ Also, make sure to create your own API key with `All (root/admin access), be car
 
 After migration you can run `docker compose down` in `~/v4-proxy` to disable the production database proxy.
 
+**Feel free to contact for any support on discord: `@eduh`**
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
